@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bien Run - Paramaribo Endless Runner</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+            touch-action: none; /* Voorkomt ongewenst scrollen op mobiel */
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #111;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #game-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            background: linear-gradient(135deg, rgba(26, 82, 118, 0.95), rgba(22, 160, 133, 0.95));
+            transition: opacity 0.5s ease;
+        }
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        #start-screen h1 {
+            color: #f1c40f;
+            font-size: 4rem;
+            text-transform: uppercase;
+            text-shadow: 3px 3px 0px #c0392b, 6px 6px 0px #2c3e50;
+            margin-bottom: 20px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+        /* Logo aanzienlijk groter gemaakt */
+        #logo-container {
+            width: 260px;
+            height: 260px;
+            margin-bottom: 30px;
+            border-radius: 50%;
+            box-shadow: 0 0 35px rgba(241, 196, 15, 0.8);
+            overflow: hidden;
+            border: 6px solid #fff;
+            animation: floatAnimation 3s ease-in-out infinite alternate;
+        }
+        #logo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        @keyframes floatAnimation {
+            0% { transform: translateY(0px) rotate(0deg); }
+            100% { transform: translateY(-15px) rotate(5deg); }
+        }
+        .btn {
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+            background-color: #e74c3c;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 8px 0 #c0392b;
+            transition: all 0.1s ease;
+            text-transform: uppercase;
+            margin: 10px;
+        }
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 4px 0 #c0392b;
+        }
+        .audio-toggle {
+            background-color: #34495e;
+            box-shadow: 0 8px 0 #2c3e50;
+            font-size: 1.1rem;
+            padding: 10px 25px;
+        }
+        .audio-toggle:active {
+            box-shadow: 0 4px 0 #2c3e50;
+        }
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+            pointer-events: none;
+        }
+        .hud-box {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-left: 5px solid #f1c40f;
+        }
+        #level-indicator {
+            border-left-color: #2ecc71;
+            text-align: center;
+        }
+        #game-over-screen h2 {
+            color: #e74c3c;
+            font-size: 3.5rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px #000;
+            text-align: center;
+        }
+        .score-display {
+            color: #fff;
+            font-size: 1.8rem;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .scoreboard {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 320px;
+            margin-bottom: 25px;
+            color: #fff;
+        }
+        .scoreboard h3 {
+            text-align: center;
+            color: #f1c40f;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #fff;
+            padding-bottom: 5px;
+        }
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 1rem;
+        }
+        .score-row.current-player {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+        #controls-hint {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.8);
+            background: rgba(0,0,0,0.5);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            pointer-events: none;
+            z-index: 5;
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+        
+        /* Bien Tech Link Styling */
+        #bien-tech-link {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            color: #f1c40f;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 15px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1rem;
+            z-index: 100;
+            border: 1px solid #f1c40f;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            transition: all 0.2s;
+            pointer-events: auto; /* Zorgt dat er op geklikt kan worden */
+        }
+        #bien-tech-link:hover {
+            background: #f1c40f;
+            color: #000;
+        }
+        
+        @media (max-width: 600px) {
+            #start-screen h1 { font-size: 2.8rem; }
+            #logo-container { width: 200px; height: 200px; }
+            .hud-box { font-size: 0.9rem; padding: 8px 10px; }
+            #controls-hint { font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="hud">
+            <div class="hud-box" id="score-box">SRD: 0</div>
+            <div class="hud-box" id="level-indicator">Straat: Domineestraat<br><span style="font-size:0.8rem; font-weight:normal;">Level 1</span></div>
+            <div class="hud-box" id="munt-box">Munten: 0</div>
+        </div>
+
+        <div id="controls-hint">PC: Pijltoetsen (←/→) & Spatbalk.<br>Mobiel: Swipe links/rechts & Tik om te springen.</div>
+
+        <a id="bien-tech-link" href="https://bienittech.github.io/" target="_blank">Design by Bien Tech</a>
+
+        <div id="start-screen" class="overlay">
+            <h1>Bien Run</h1>
+            <div id="logo-container">
+                <img src="run logo.png" alt="Bien Run Logo" onerror="this.src='https://via.placeholder.com/260/f1c40f/ffffff?text=Bien+Run'">
+            </div>
+            <button class="btn" id="start-btn">Start Spel</button>
+            <button class="btn audio-toggle" id="music-toggle-btn">Muziek: AAN</button>
+        </div>
+
+        <div id="game-over-screen" class="overlay hidden">
+            <h2>Game Over!</h2>
+            <div class="score-display">Eindbedrag: <span id="final-score" style="color:#f1c40f; font-weight:bold;">0</span> SRD</div>
+            
+            <div class="scoreboard">
+                <h3>Top Srefi Runskunsten</h3>
+                <div id="scoreboard-rows"></div>
+            </div>
+
+            <button class="btn" id="restart-btn">Probeer Opnieuw</button>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer;
+        let player, playerSpriteMaterial;
+        let laneWidth = 3;
+        let currentLane = 0; 
+        let targetX = 0;
+        let isJumping = false;
+        let jumpVelocity = 0;
+        let gravity = 0.015;
+        
+        let score = 0;
+        let munten = 0;
+        let gameActive = false;
+        let gameSpeed = 0.15;
+        const maxSpeed = 0.4;
+        let currentLevel = 1;
+        let distanceTraveled = 0;
+
+        let obstacles = [];
+        let coins = [];
+        let environmentObjects = [];
+        let roadSegments = [];
+
+        let bienTextures = {};
+        let animationTick = 0;
+        let currentFrame = 'stand';
+
+        let audioCtx = null;
+        let soundMuted = false;
+        let currentAudioTrack = null;
+        
+        // Touch variabelen voor mobiel
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        const audioTracks = {
+            1: "OTU-K Mi Skin Teke Yu pro-by-RC.mp3",
+            2: "OTU-K Mooi Mofu Mama pro- by-RC-S.mp3",
+            3: "OTU-K Caribbean Vibes prod-by-RC-S.mp3"
+        };
+
+        const highscores = [
+            { name: "Pris", score: 4500 },
+            { name: "Steven", score: 3800 },
+            { name: "Maureen", score: 2900 },
+            { name: "Rafi", score: 2100 },
+            { name: "Joan", score: 1750 },
+            { name: "Jurgen", score: 1200 },
+            { name: "Sevgi", score: 850 },
+            { name: "Nieva", score: 500 }
+        ];
+
+        window.onload = function() {
+            init3D();
+            initInterface();
+            initTouchControls();
+            loadTextures();
+            animate();
+        };
+
+        function init3D() {
+            const container = document.getElementById('game-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); 
+            scene.fog = new THREE.FogExp2(0x87CEEB, 0.015);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 3.5, 6);
+            camera.lookAt(0, 1.5, -2);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(5, 15, 5);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            playerSpriteMaterial = new THREE.SpriteMaterial({ color: 0xffffff, transparent: true });
+            player = new THREE.Sprite(playerSpriteMaterial);
+            player.position.set(0, 1.2, 0);
+            player.scale.set(1.8, 2.2, 1);
+            scene.add(player);
+
+            for (let i = 0; i < 10; i++) {
+                createRoadSegment(-i * 20);
+            }
+
+            window.addEventListener('resize', onWindowResize, false);
+            window.addEventListener('keydown', handleInput, false);
+        }
+
+        function initInterface() {
+            document.getElementById('start-btn').addEventListener('click', startGame);
+            document.getElementById('restart-btn').addEventListener('click', restartGame);
+            
+            const musicBtn = document.getElementById('music-toggle-btn');
+            musicBtn.addEventListener('click', () => {
+                soundMuted = !soundMuted;
+                musicBtn.innerText = soundMuted ? "Muziek: UIT" : "Muziek: AAN";
+                musicBtn.style.backgroundColor = soundMuted ? "#7f8c8d" : "#34495e";
+                manageMusic();
+            });
+        }
+        
+        function initTouchControls() {
+            const container = document.getElementById('game-container');
+            
+            container.addEventListener('touchstart', function(e) {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            }, {passive: true});
+
+            container.addEventListener('touchend', function(e) {
+                if (!gameActive) return;
+                
+                let touchEndX = e.changedTouches[0].screenX;
+                let touchEndY = e.changedTouches[0].screenY;
+                
+                let dx = touchEndX - touchStartX;
+                let dy = touchEndY - touchStartY;
+                
+                // Als de swipe meer horizontaal is dan verticaal
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    if (Math.abs(dx) > 30) { // Minimale swipe afstand
+                        if (dx > 0 && currentLane < 1) { // Swipe Rechts
+                            currentLane++;
+                            targetX = currentLane * laneWidth;
+                        } else if (dx < 0 && currentLane > -1) { // Swipe Links
+                            currentLane--;
+                            targetX = currentLane * laneWidth;
+                        }
+                    }
+                } else {
+                    // Als er op het scherm wordt getikt of omhoog wordt geswiped
+                    if (dy < -30 || (Math.abs(dx) < 20 && Math.abs(dy) < 20)) {
+                        if (!isJumping) {
+                            isJumping = true;
+                            jumpVelocity = 0.32;
+                            playSynthSound('jump');
+                        }
+                    }
+                }
+            }, {passive: true});
+        }
+
+        function loadTextures() {
+            const textureLoader = new THREE.TextureLoader();
+            
+            // Originele namen met spaties aangehouden
+            textureLoader.load('bien back stand.png', (txt) => {
+                bienTextures['stand'] = txt;
+                if(currentFrame === 'stand') playerSpriteMaterial.map = txt;
+            }, undefined, (err) => fallbackTexture('stand'));
+
+            textureLoader.load('bien back run.png', (txt) => {
+                bienTextures['run'] = txt;
+            }, undefined, (err) => fallbackTexture('run'));
+        }
+
+        function fallbackTexture(type) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = type === 'stand' ? '#e67e22' : '#d35400';
+            ctx.fillRect(0,0,128,128);
+            ctx.fillStyle = '#fff';
+            ctx.font = '20px sans-serif';
+            ctx.fillText('Bien ' + type, 10, 64);
+            const texture = new THREE.CanvasTexture(canvas);
+            bienTextures[type] = texture;
+            playerSpriteMaterial.map = texture;
+        }
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSynthSound(type) {
+            if (soundMuted || !audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'jump') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(700, now + 0.15);
+                gainNode.gain.setValueAtTime(0.15, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'crash') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.linearRampToValueAtTime(40, now + 0.4);
+                gainNode.gain.setValueAtTime(0.3, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'coin') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(987.77, now); 
+                osc.frequency.setValueAtTime(1318.51, now + 0.08); 
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.25);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+        }
+
+        function manageMusic() {
+            if (soundMuted || !gameActive) {
+                if (currentAudioTrack) currentAudioTrack.pause();
+                return;
+            }
+            initAudio();
+            const trackSrc = audioTracks[currentLevel];
+            if (!currentAudioTrack || !currentAudioTrack.src.includes(encodeURI(trackSrc))) {
+                if (currentAudioTrack) currentAudioTrack.pause();
+                currentAudioTrack = new Audio(trackSrc);
+                currentAudioTrack.loop = true;
+                currentAudioTrack.volume = 0.4;
+                currentAudioTrack.play().catch(e => console.log("Audio block door browser"));
+            } else {
+                currentAudioTrack.play().catch(() => {});
+            }
+        }
+
+        function startGame() {
+            initAudio();
+            document.getElementById('start-screen').classList.add('hidden');
+            gameActive = true;
+            manageMusic();
+        }
+
+        function restartGame() {
+            document.getElementById('game-over-screen').classList.add('hidden');
+            obstacles.forEach(o => scene.remove(o));
+            coins.forEach(c => scene.remove(c));
+            environmentObjects.forEach(e => scene.remove(e));
+            obstacles = [];
+            coins = [];
+            environmentObjects = [];
+            
+            score = 0;
+            munten = 0;
+            currentLevel = 1;
+            gameSpeed = 0.15;
+            distanceTraveled = 0;
+            currentLane = 0;
+            targetX = 0;
+            player.position.set(0, 1.2, 0);
+
+            document.getElementById('score-box').innerText = "SRD: 0";
+            document.getElementById('munt-box').innerText = "Munten: 0";
+            updateLevelUI();
+
+            gameActive = true;
+            manageMusic();
+        }
+
+        function triggerGameOver() {
+            gameActive = false;
+            playSynthSound('crash');
+            if (currentAudioTrack) currentAudioTrack.pause();
+
+            document.getElementById('final-score').innerText = score;
+            
+            const rowsContainer = document.getElementById('scoreboard-rows');
+            rowsContainer.innerHTML = '';
+
+            let fullList = [...highscores, { name: "Bien", score: score }];
+            fullList.sort((a, b) => b.score - a.score);
+
+            fullList.forEach((entry, idx) => {
+                if(idx < 7) { 
+                    const row = document.createElement('div');
+                    row.className = 'score-row' + (entry.name === "Bien" ? ' current-player' : '');
+                    row.innerHTML = `<span>${idx + 1}. ${entry.name}</span><span>${entry.score} SRD</span>`;
+                    rowsContainer.appendChild(row);
+                }
+            });
+
+            document.getElementById('game-over-screen').classList.remove('hidden');
+        }
+
+        function handleInput(e) {
+            if (!gameActive) return;
+            if ((e.key === 'ArrowLeft' || e.key === 'a') && currentLane > -1) {
+                currentLane--;
+                targetX = currentLane * laneWidth;
+            }
+            if ((e.key === 'ArrowRight' || e.key === 'd') && currentLane < 1) {
+                currentLane++;
+                targetX = currentLane * laneWidth;
+            }
+            if ((e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') && !isJumping) {
+                isJumping = true;
+                jumpVelocity = 0.32;
+                playSynthSound('jump');
+            }
+        }
+
+        function createRoadSegment(zPos) {
+            const roadGroup = new THREE.Group();
+            let roadColor = 0x555555;
+            if (currentLevel === 3) roadColor = 0x3d2314; 
+            
+            const roadGeo = new THREE.BoxGeometry(10, 0.2, 20);
+            const roadMat = new THREE.MeshStandardMaterial({ color: roadColor, roughness: 0.8 });
+            const road = new THREE.Mesh(roadGeo, roadMat);
+            road.receiveShadow = true;
+            roadGroup.add(road);
+
+            const curbGeo = new THREE.BoxGeometry(1.5, 0.5, 20);
+            const curbMat = new THREE.MeshStandardMaterial({ color: currentLevel === 3 ? 0x2ecc71 : 0xaaaaaa });
+            const leftCurb = new THREE.Mesh(curbGeo, curbMat);
+            leftCurb.position.set(-5.75, 0.15, 0);
+            roadGroup.add(leftCurb);
+
+            const rightCurb = leftCurb.clone();
+            rightCurb.position.x = 5.75;
+            roadGroup.add(rightCurb);
+
+            roadGroup.position.z = zPos;
+            scene.add(roadGroup);
+            roadSegments.push(roadGroup);
+            
+            // Meteen gebouwen genereren voor de zijkanten
+            buildEnvironmentObjects(zPos);
+        }
+
+        function buildEnvironmentObjects(zPos) {
+            for (let side of [-8, 8]) {
+                // Aanzienlijk hogere kans (85%) dat er een gebouw of boom wordt geplaatst (was 40%)
+                if (Math.random() > 0.15) {
+                    let model;
+                    if (currentLevel === 1) {
+                        // Domineestraat - Dichtbebouwd
+                        if (Math.random() > 0.7 && side === -8) {
+                            const geo = new THREE.BoxGeometry(5, 9, 12); // Groot hotel
+                            const mat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5 });
+                            model = new THREE.Mesh(geo, mat);
+                            model.position.set(side * 1.4, 4.5, zPos + (Math.random() * 6 - 3));
+                        } else {
+                            // Meerdere kleurrijke houten winkelpanden direct naast elkaar
+                            const geo = new THREE.BoxGeometry(4, 5 + Math.random() * 3, 7);
+                            const colors = [0xffffff, 0x3498db, 0xf1c40f, 0xd35400, 0x1abc9c, 0x9b59b6];
+                            const mat = new THREE.MeshStandardMaterial({ color: colors[Math.floor(Math.random() * colors.length)] });
+                            model = new THREE.Mesh(geo, mat);
+                            model.position.set(side * 1.2, 2.5, zPos);
+                        }
+                    } else if (currentLevel === 2) {
+                        // Henck Arronstraat - Paleizen en Kathedralen
+                        if (Math.random() > 0.5) {
+                            const geo = new THREE.BoxGeometry(4, 12 + Math.random() * 4, 8);
+                            const mat = new THREE.MeshStandardMaterial({ color: 0x9b59b6 }); // Kathedraal stijl
+                            model = new THREE.Mesh(geo, mat);
+                            model.position.set(side * 1.3, 6, zPos);
+                        } else {
+                            const geo = new THREE.BoxGeometry(5, 6, 8);
+                            const mat = new THREE.MeshStandardMaterial({ color: 0xffffff }); // Paleis stijl
+                            model = new THREE.Mesh(geo, mat);
+                            model.position.set(side * 1.3, 3, zPos);
+                        }
+                    } else if (currentLevel === 3) {
+                        // Cornelis Jongbawstraat - Tropisch groen
+                        if (Math.random() > 0.3) {
+                            model = new THREE.Group();
+                            const trunkGeo = new THREE.CylinderGeometry(0.3, 0.4, 4);
+                            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
+                            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                            trunk.position.y = 2;
+                            model.add(trunk);
+                            
+                            const leavesGeo = new THREE.ConeGeometry(2.5, 5, 8);
+                            const leavesMat = new THREE.MeshStandardMaterial({ color: 0x27ae60 });
+                            const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+                            leaves.position.y = 5;
+                            model.add(leaves);
+                            model.position.set(side * 1.2, 0, zPos + (Math.random() * 4 - 2));
+                        } else {
+                            const geo = new THREE.BoxGeometry(4, 4, 5);
+                            const mat = new THREE.MeshStandardMaterial({ color: 0xecf0f1 });
+                            model = new THREE.Mesh(geo, mat);
+                            model.position.set(side * 1.6, 2, zPos);
+                        }
+                    }
+                    if (model) {
+                        scene.add(model);
+                        environmentObjects.push(model);
+                    }
+                }
+            }
+        }
+
+        function spawnObstaclesAndCoins(zPos) {
+            const lane = Math.floor(Math.random() * 3) - 1;
+            const xPos = lane * laneWidth;
+
+            if (Math.random() > 0.4) {
+                let obstacleMesh;
+                const randType = Math.random();
+                if (randType > 0.6) {
+                    const geo = new THREE.BoxGeometry(2.2, 2.6, 6);
+                    const mat = new THREE.MeshStandardMaterial({ color: 0xf1c40f, roughness: 0.5 });
+                    obstacleMesh = new THREE.Mesh(geo, mat);
+                    obstacleMesh.position.set(xPos, 1.3, zPos);
+                    obstacleMesh.userData = { type: 'bus' };
+                } else if (randType > 0.3) {
+                    const geo = new THREE.BoxGeometry(2.4, 1.8, 2);
+                    const mat = new THREE.MeshStandardMaterial({ color: 0xe67e22 });
+                    obstacleMesh = new THREE.Mesh(geo, mat);
+                    obstacleMesh.position.set(xPos, 0.9, zPos);
+                    obstacleMesh.userData = { type: 'kraam' };
+                } else {
+                    const geo = new THREE.BoxGeometry(1.8, 0.9, 1.5);
+                    const mat = new THREE.MeshStandardMaterial({ color: 0x2c3e50 });
+                    obstacleMesh = new THREE.Mesh(geo, mat);
+                    obstacleMesh.position.set(xPos, 0.45, zPos);
+                    obstacleMesh.userData = { type: 'fiets' };
+                }
+                scene.add(obstacleMesh);
+                obstacles.push(obstacleMesh);
+            } else {
+                const coinGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 16);
+                const coinMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.8, roughness: 0.2 });
+                const coin = new THREE.Mesh(coinGeo, coinMat);
+                coin.rotation.x = Math.PI / 2;
+                coin.position.set(xPos, 1.0, zPos);
+                scene.add(coin);
+                coins.push(coin);
+            }
+        }
+
+        function updateLevelUI() {
+            const ind = document.getElementById('level-indicator');
+            if (currentLevel === 1) {
+                ind.innerHTML = "Straat: Domineestraat<br><span style='font-size:0.8rem; font-weight:normal;'>Level 1</span>";
+                scene.background.setHex(0x87CEEB);
+                scene.fog.color.setHex(0x87CEEB);
+            } else if (currentLevel === 2) {
+                ind.innerHTML = "Straat: Henck Arronstraat<br><span style='font-size:0.8rem; font-weight:normal;'>Level 2</span>";
+                scene.background.setHex(0xf39c12); 
+                scene.fog.color.setHex(0xf39c12);
+            } else if (currentLevel === 3) {
+                ind.innerHTML = "Straat: Cornelis Jongbawstr.<br><span style='font-size:0.8rem; font-weight:normal;'>Level 3</span>";
+                scene.background.setHex(0x27ae60); 
+                scene.fog.color.setHex(0x27ae60);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (gameActive) {
+                gameSpeed = Math.min(0.15 + (score * 0.00002), maxSpeed);
+                distanceTraveled += gameSpeed;
+                score += Math.floor(gameSpeed * 10);
+                document.getElementById('score-box').innerText = "SRD: " + score;
+
+                let previousLevel = currentLevel;
+                if (distanceTraveled > 2500) {
+                    currentLevel = 3;
+                } else if (distanceTraveled > 1200) {
+                    currentLevel = 2;
+                } else {
+                    currentLevel = 1;
+                }
+
+                if (currentLevel !== previousLevel) {
+                    updateLevelUI();
+                    manageMusic(); 
+                }
+
+                player.position.x += (targetX - player.position.x) * 0.2;
+
+                if (isJumping) {
+                    player.position.y += jumpVelocity;
+                    jumpVelocity -= gravity;
+                    if (player.position.y <= 1.2) {
+                        player.position.y = 1.2;
+                        isJumping = false;
+                    }
+                }
+
+                animationTick++;
+                if (!isJumping && animationTick % 10 === 0) {
+                    currentFrame = (currentFrame === 'stand') ? 'run' : 'stand';
+                    if (bienTextures[currentFrame]) {
+                        playerSpriteMaterial.map = bienTextures[currentFrame];
+                    }
+                }
+
+                roadSegments.forEach(segment => {
+                    segment.position.z += gameSpeed;
+                    if (segment.position.z > 20) {
+                        segment.position.z -= 200;
+                        spawnObstaclesAndCoins(segment.position.z);
+                    }
+                });
+
+                for (let i = environmentObjects.length - 1; i >= 0; i--) {
+                    let obj = environmentObjects[i];
+                    obj.position.z += gameSpeed;
+                    if (obj.position.z > 20) {
+                        scene.remove(obj);
+                        environmentObjects.splice(i, 1);
+                    }
+                }
+
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    let obs = obstacles[i];
+                    obs.position.z += gameSpeed;
+
+                    if (Math.abs(obs.position.z - player.position.z) < 1.2) {
+                        if (Math.abs(obs.position.x - player.position.x) < 1.0) {
+                            if (obs.userData.type === 'fiets' && player.position.y > 1.8) {
+                                // Veilig gesprongen
+                            } else {
+                                triggerGameOver();
+                            }
+                        }
+                    }
+                    if (obs.position.z > 10) {
+                        scene.remove(obs);
+                        obstacles.splice(i, 1);
+                    }
+                }
+
+                for (let i = coins.length - 1; i >= 0; i--) {
+                    let coin = coins[i];
+                    coin.position.z += gameSpeed;
+                    coin.rotation.z += 0.05; 
+
+                    if (Math.abs(coin.position.z - player.position.z) < 1.0 && 
+                        Math.abs(coin.position.x - player.position.x) < 1.0 &&
+                        player.position.y < 2.2) {
+                        
+                        playSynthSound('coin');
+                        munten++;
+                        score += 250; 
+                        document.getElementById('munt-box').innerText = "Munten: " + munten;
+                        scene.remove(coin);
+                        coins.splice(i, 1);
+                        continue;
+                    }
+
+                    if (coin.position.z > 10) {
+                        scene.remove(coin);
+                        coins.splice(i, 1);
+                    }
+                }
+            }
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>
